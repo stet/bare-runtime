@@ -1,4 +1,4 @@
-name: Build and Release Bare Binaries
+name: Build Bare Binaries
 
 on:
   release:
@@ -6,28 +6,28 @@ on:
 
 jobs:
   build:
-    name: Build Bare
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: ubuntu-latest
-            artifact_name: bare-linux-x64
+            bin_name: bare-linux-x64
             bin_path: build/bin/bare
           - os: macos-latest
-            artifact_name: bare-macos-x64
+            bin_name: bare-macos-x64
             bin_path: build/bin/bare
           - os: windows-latest
-            artifact_name: bare-win32-x64.exe
+            bin_name: bare-win32-x64.exe
             bin_path: build/bin/bare.exe
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
 
-      - name: Set up Node.js
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 18
 
       - name: Install bare-make
         run: npm install -g bare-make
@@ -38,23 +38,17 @@ jobs:
       - name: Generate build system
         run: bare-make generate
 
-      - name: Build bare
+      - name: Build Bare
         run: bare-make build
 
-      - name: Rename binary for upload
+      - name: Prepare binary for upload
         run: |
           mkdir -p dist
-          cp "${{ matrix.bin_path }}" "dist/${{ matrix.artifact_name }}"
+          cp ${{ matrix.bin_path }} dist/${{ matrix.bin_name }}
 
-      - name: Upload binary as artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload binary to release
+        uses: softprops/action-gh-release@v1
         with:
-          name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.artifact_name }}
-
-      - name: Upload binary to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/${{ matrix.artifact_name }}
+          files: dist/${{ matrix.bin_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
